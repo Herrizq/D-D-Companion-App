@@ -6,14 +6,33 @@
 //
 
 import SwiftUI
+import SwiftData
 
 @main
 struct DnD_CompanionApp: App {
-    @StateObject private var viewModel = PlayerViewModel()
+
+    let modelContainer: ModelContainer
+
+    init() {
+        do {
+            let schema = Schema([
+                Player.self,
+                Weapon.self,
+                Spells.self,
+                Maneuver.self,
+                Armor.self
+            ])
+            let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+            modelContainer = try ModelContainer(for: schema, configurations: [modelConfiguration])
+        } catch {
+            fatalError("Nie można utworzyć ModelContainer: \(error)")
+        }
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environmentObject(viewModel)
         }
+        .modelContainer(modelContainer)
     }
 }

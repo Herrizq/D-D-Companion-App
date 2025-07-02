@@ -1,8 +1,19 @@
+//
+//  FloatingDiceRoller.swift
+//  D&D Companion App
+//
+//  Created by Michał Nalepka on 01/07/2025.
+//
+
 import SwiftUI
+import ColorSync
+import Combine
+import Foundation
 
 struct FloatingDiceRoller: View {
-    @EnvironmentObject var viewModel: PlayerViewModel
-    
+    @Bindable var player: Player
+    @Binding var ostatniRzut: RollResult?
+
     @State private var czyPanelJestRozwiniety = false
     @State private var wybraneKosci: [Int: Int] = [:]
 
@@ -10,16 +21,14 @@ struct FloatingDiceRoller: View {
     
     var body: some View {
         VStack(alignment: .trailing, spacing: 16) {
-            
             if czyPanelJestRozwiniety {
                 VStack(spacing: 8) {
-                    ForEach(typyKosci, id: \.self) { typ in
+                    ForEach(typyKosci.sorted(by: >), id: \.self) { typ in
                         Button(action: { wybraneKosci[typ, default: 0] += 1 }) {
                             Text(typ == 100 ? "k100" : "k\(typ)")
                                 .fontWeight(.bold)
                                 .frame(width: 50, height: 50)
-                                // ZMIANA: Prostsze, mniej kosztowne tło
-                                .background(Circle().fill(Color(UIColor.secondarySystemGroupedBackground)))
+                                .background(Circle().fill(Color(UIColor.systemGroupedBackground)))
                                 .overlay(
                                     ZStack {
                                         if let ilosc = wybraneKosci[typ], ilosc > 0 {
@@ -33,7 +42,7 @@ struct FloatingDiceRoller: View {
                         }
                     }
                     
-                    Button(action: wykonajRzut) {
+                    Button(action: performGeneralRoll) {
                         Image(systemName: "dice.fill")
                             .font(.title)
                             .foregroundColor(.white)
@@ -44,9 +53,8 @@ struct FloatingDiceRoller: View {
                     .padding(.top, 10)
                 }
                 .padding()
-                // ZMIANA: Prostsze, mniej kosztowne tło
                 .background(Capsule().fill(Color(UIColor.systemBackground)))
-                .overlay(Capsule().stroke(Color.gray.opacity(0.3), lineWidth: 1)) // Zamiast cienia, delikatna ramka
+                .overlay(Capsule().stroke(Color.gray.opacity(0.3), lineWidth: 1))
                 .transition(.scale(scale: 0.1, anchor: .bottomTrailing).combined(with: .opacity))
             }
             
@@ -59,20 +67,58 @@ struct FloatingDiceRoller: View {
                 Image(systemName: czyPanelJestRozwiniety ? "xmark" : "die.face.5.fill")
                     .font(.title)
                     .frame(width: 60, height: 60)
-                    // ZMIANA: Prostsze, mniej kosztowne tło
-                    .background(Circle().fill(Color(UIColor.secondarySystemGroupedBackground)))
-                    .overlay(Circle().stroke(Color.gray.opacity(0.3), lineWidth: 1)) // Delikatna ramka zamiast cienia
+                    .background(Circle().fill(Color(UIColor.systemGroupedBackground)))
+                    .overlay(Circle().stroke(Color.gray.opacity(0.3), lineWidth: 1))
                     .rotationEffect(.degrees(czyPanelJestRozwiniety ? 90 : 0))
             }
         }
-        .padding()
     }
     
-    private func wykonajRzut() {
-        viewModel.wykonajRzutOgolny(kosciDoRzucenia: wybraneKosci)
+    private func performGeneralRoll() {
+        var totalSum = 0
+        var formula: [String] = []
+        
+        for diceType in wybraneKosci.keys.sorted(by: >) {
+            if let count = wybraneKosci[diceType], count > 0 {
+                var sumForType = 0
+                for _ in 0..<count {
+                    sumForType += Int.random(in: 1...diceType)
+                }
+                totalSum += sumForType
+                formula.append("\(count)k\(diceType)")
+            }
+        }
+        
+        guard !formula.isEmpty else { return }
+        
+        let rollResult = RollResult(
+            tytul: "Rzut Ogólny",
+            wynikOstateczny: totalSum,
+            rzutKosci: totalSum,
+            modyfikator: 0,
+            formula: formula.joined(separator: " + ")
+        )
+        
+        showRollNotification(rollResult)
+
         withAnimation(.spring()) {
             wybraneKosci.removeAll()
             czyPanelJestRozwiniety = false
+        }
+    }
+
+    private func showRollNotification(_ wynik: RollResult) {
+        withAnimation(.spring()) {
+            ostatniRzut = wynik
+        }
+        
+        Task {
+            try? await Task.sleep(for: .seconds(4))
+            if ostatniRzut == wynik {
+                withAnimation(.easeOut) {
+                    ostatniRzut = nil
+                }
+            }
         }
     }
 }

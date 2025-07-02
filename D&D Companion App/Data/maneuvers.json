@@ -1,0 +1,28 @@
+
+[
+  {
+    "id": "atak-dowodzony",
+    "nazwa": "Atak dowodzony",
+    "opis": "Gdy wykonujesz akcję Ataku w swojej turze, możesz zrezygnować z jednego ze swoich ataków i użyć akcji dodatkowej, by skierować jednego ze swoich sojuszników do ataku. Wydaj jedną kość dominacji. Wybrany sojusznik może natychmiast użyć swojej reakcji, by wykonać jeden atak wręcz lub dystansowy. Dodaj wynik rzutu kością dominacji do rzutu na obrażenia sojusznika."
+  },
+  {
+    "id": "parowanie",
+    "nazwa": "Parowanie",
+    "opis": "Gdy inna istota zada ci obrażenia atakiem wręcz, możesz użyć swojej reakcji i wydać jedną kość dominacji, by zmniejszyć te obrażenia o wynik rzutu kością dominacji + modyfikator ze Zręczności."
+  },
+  {
+    "id": "zwodniczy-atak",
+    "nazwa": "Zwodniczy atak",
+    "opis": "Możesz wydać jedną kość dominacji, by dodać jej wynik do rzutu na atak. Możesz użyć tej zdolności przed lub po wykonaniu rzutu, ale zanim poznasz jego wynik."
+  },
+  {
+    "id": "precyzyjny-atak",
+    "nazwa": "Precyzyjny atak",
+    "opis": "Gdy wykonujesz rzut na atak bronią, możesz wydać jedną kość dominacji, by dodać jej wynik do rzutu. Możesz użyć tej zdolności przed lub po wykonaniu rzutu, ale zanim poznasz jego wynik."
+  },
+  {
+    "id": "odstraszajacy-atak",
+    "nazwa": "Odstraszający atak",
+    "opis": "Gdy trafisz istotę atakiem bronią, możesz wydać jedną kość dominacji, by spróbować ją przestraszyć. Dodaj wynik rzutu kością dominacji do rzutu na obrażenia ataku, a cel musi wykonać rzut obronny na Mądrość. Jeśli mu się nie powiedzie, jest przestraszony do końca twojej następnej tury."
+  }
+]

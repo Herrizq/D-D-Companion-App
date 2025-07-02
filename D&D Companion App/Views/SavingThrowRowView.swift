@@ -8,16 +8,16 @@
 import SwiftUI
 
 struct SavingThrowRowView: View {
-    @EnvironmentObject var viewModel: PlayerViewModel
     let statystyka: BasicStatistics
-    @Binding var postacBinding: Player
+    @Bindable var player: Player
+    @Binding var ostatniRzut: RollResult?
     
     @State private var pokazOpcjeRzutuObronnego = false
 
     var body: some View {
         HStack {
             Button(action: toggleProficiency) {
-                Image(systemName: postacBinding.savingThrowsProficiency.contains(statystyka) ? "largecircle.fill.circle" : "circle")
+                Image(systemName: player.savingThrowsProficiency.contains(statystyka) ? "largecircle.fill.circle" : "circle")
             }
             
             Text(statystyka.rawValue)
@@ -27,34 +27,56 @@ struct SavingThrowRowView: View {
         .foregroundColor(.primary)
         .contentShape(Rectangle())
         .onTapGesture {
-            if postacBinding.inspiracja {
+            if player.inspiracja {
                 pokazOpcjeRzutuObronnego = true
             } else {
-                viewModel.wykonajRzutObronny(statystyka: statystyka, zPrzewaga: false)
+                performSavingThrow(withAdvantage: false)
             }
         }
         .confirmationDialog("Rzut Obronny: \(statystyka.rawValue)", isPresented: $pokazOpcjeRzutuObronnego, titleVisibility: .visible) {
-            Button("Normalny rzut") { viewModel.wykonajRzutObronny(statystyka: statystyka, zPrzewaga: false) }
-            // Ten przycisk jest już wewnątrz warunku, więc nie trzeba go tu sprawdzać
-            Button("Użyj Inspiracji (Przewaga)") { viewModel.wykonajRzutObronny(statystyka: statystyka, zPrzewaga: true) }
+            Button("Normalny rzut") { performSavingThrow(withAdvantage: false) }
+            Button("Użyj Inspiracji (Przewaga)") { performSavingThrow(withAdvantage: true) }
             Button("Anuluj", role: .cancel) {}
         }
-        .buttonStyle(.plain) // Ważne, aby to zostawić!
     }
+    
     private var modifierText: String {
-        let modifier = postacBinding.SavingThromModifier(for: statystyka)
+        let modifier = player.savingThrowModifier(for: statystyka)
         return modifier >= 0 ? "+\(modifier)" : "\(modifier)"
     }
 
     private func toggleProficiency() {
-        if postacBinding.savingThrowsProficiency.contains(statystyka) {
-            postacBinding.savingThrowsProficiency.remove(statystyka)
+        if let index = player.savingThrowsProficiency.firstIndex(of: statystyka) {
+            player.savingThrowsProficiency.remove(at: index)
         } else {
-            postacBinding.savingThrowsProficiency.insert(statystyka)
+            player.savingThrowsProficiency.append(statystyka)
         }
     }
     
-    private func performSavingThrow() {
-        viewModel.wykonajRzutObronny(statystyka: statystyka)
+    private func performSavingThrow(withAdvantage: Bool) {
+        if withAdvantage && player.inspiracja {
+            player.inspiracja = false
+        }
+        
+        let hasDisadvantage = player.aktywneStany.contains(.Otruty) || player.aktywneStany.contains(.Przestraszony)
+        let modifier = player.savingThrowModifier(for: statystyka)
+        var diceRoll = Int.random(in: 1...20)
+        var rollTitle = "Rzut obronny: \(statystyka.rawValue)"
+        
+        if withAdvantage && !hasDisadvantage {
+            diceRoll = max(diceRoll, Int.random(in: 1...20))
+            rollTitle = "Rzut obronny (Przewaga): \(statystyka.rawValue)"
+        } else if hasDisadvantage && !withAdvantage {
+            diceRoll = min(diceRoll, Int.random(in: 1...20))
+            rollTitle = "Rzut obronny (Utrudnienie): \(statystyka.rawValue)"
+        }
+        
+        let rollResult = RollResult(
+            tytul: rollTitle,
+            wynikOstateczny: diceRoll + modifier,
+            rzutKosci: diceRoll,
+            modyfikator: modifier
+        )
+        ostatniRzut = rollResult
     }
 }

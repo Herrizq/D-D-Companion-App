@@ -8,25 +8,23 @@
 import SwiftUI
 
 struct SavesAndSensesView: View {
-    @EnvironmentObject var viewModel: PlayerViewModel
+    @Bindable var player: Player
+    @Binding var ostatniRzut: RollResult?
 
     var body: some View {
         TitledContainer(title: "Rzuty Obronne i Zmysły") {
             VStack(spacing: 10) {
                 ForEach(BasicStatistics.allCases, id: \.self) { stat in
-                    SavingThrowRowView(statystyka: stat, postacBinding: $viewModel.postac)
+                    SavingThrowRowView(statystyka: stat, player: player, ostatniRzut: $ostatniRzut)
                 }
-                
                 Divider().padding(.vertical, 5)
-                
                 HStack {
                     Text("Pasywna Percepcja").font(.caption)
                     Spacer()
-                    Text("\(viewModel.postac.passiveWisdom)").fontWeight(.bold)
+                    Text("\(player.passiveWisdom)").fontWeight(.bold)
                 }
             }
         }
         .buttonStyle(.plain)
     }
 }
-

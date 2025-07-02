@@ -6,44 +6,45 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct AddWeaponView: View {
-    @EnvironmentObject var viewModel: PlayerViewModel
+    @Bindable var player: Player
     @Environment(\.dismiss) var dismiss
     
-    private let wszystkieBronie = DataManager.shared.bronie
+    // Pobieramy wszystkie bronie z bazy SwiftData
+    @Query private var allWeapons: [Weapon]
+    
     @State private var searchText = ""
     
-    var wynikiWyszukiwania: [Weapon] {
+    var searchResults: [Weapon] {
         if searchText.isEmpty {
-            return wszystkieBronie
+            return allWeapons
         } else {
-            return wszystkieBronie.filter { $0.nazwa.localizedCaseInsensitiveContains(searchText) }
+            return allWeapons.filter { $0.nazwa.localizedCaseInsensitiveContains(searchText) }
         }
     }
 
     var body: some View {
         NavigationView {
-            // ZMIANA: Używamy teraz List jako kontenera, a ForEach do generowania wierszy.
-            List {
-                ForEach(wynikiWyszukiwania) { bron in
-                    Button(action: {
-                        viewModel.AddWeapon(bron)
-                        dismiss()
-                    }) {
-                        VStack(alignment: .leading) {
-                            Text(bron.nazwa).font(.headline)
-                            
-                            // Tworzymy opis właściwości, aby był czytelny
-                            let wlasciwosciOpis = bron.wlasciwosci.isEmpty ? "Brak" : bron.wlasciwosci.joined(separator: ", ")
-                            
-                            Text("Obrażenia: \(bron.iloscKosciObrazen)k\(bron.koscObrazen), Właściwości: \(wlasciwosciOpis)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
+            List(searchResults) { bron in
+                Button(action: {
+                    // Dodajemy broń bezpośrednio do kolekcji postaci.
+                    // SwiftData automatycznie zapisze tę zmianę.
+                    player.carriedWeapons!.append(bron)
+                    dismiss()
+                }) {
+                    VStack(alignment: .leading) {
+                        Text(bron.nazwa).font(.headline)
+                        
+                        let wlasciwosciOpis = bron.wlasciwosci.isEmpty ? "Brak" : bron.wlasciwosci.joined(separator: ", ")
+                        
+                        Text("Obrażenia: \(bron.iloscKosciObrazen)k\(bron.koscObrazen), Właściwości: \(wlasciwosciOpis)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
-                    .foregroundColor(.primary)
                 }
+                .foregroundColor(.primary)
             }
             .searchable(text: $searchText, prompt: "Szukaj broni...")
             .navigationTitle("Dodaj Broń")

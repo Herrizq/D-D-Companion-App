@@ -8,28 +8,28 @@
 import SwiftUI
 
 struct UmiejetnoscRowView: View {
-    @EnvironmentObject var viewModel: PlayerViewModel
-    @State private var pokazOpcjeRzutu = false
-    
     let umiejetnosc: Skills
-    @Binding var postacBinding: Player
+    @Bindable var player: Player
+    @Binding var ostatniRzut: RollResult?
+    
+    @State private var pokazOpcjeRzutu = false
     
     var body: some View {
         HStack {
             Button {
                 toggleBieglosc()
             } label: {
-                Image(systemName: postacBinding.skillsProficiencyList.contains(umiejetnosc) ? "checkmark.circle.fill" : "circle")
+                Image(systemName: player.skillsProficiencyList.contains(umiejetnosc) ? "checkmark.circle.fill" : "circle")
                     .font(.title2)
-                    .foregroundColor(postacBinding.skillsProficiencyList.contains(umiejetnosc) ? .green : .secondary)
+                    .foregroundColor(player.skillsProficiencyList.contains(umiejetnosc) ? .green : .secondary)
             }
             .buttonStyle(.plain)
 
             Button {
-                if viewModel.postac.inspiracja {
+                if player.inspiracja {
                     pokazOpcjeRzutu = true
                 } else {
-                    viewModel.SkillRoll(umiejetnosc: umiejetnosc, zPrzewaga: false)
+                    performSkillCheck(withAdvantage: false)
                 }
             } label: {
                 HStack {
@@ -47,30 +47,51 @@ struct UmiejetnoscRowView: View {
         }
         .padding(.vertical, 4)
         .confirmationDialog("Wykonaj test umiejętności", isPresented: $pokazOpcjeRzutu, titleVisibility: .visible) {
-            Button("Normalny rzut") {
-                viewModel.SkillRoll(umiejetnosc: umiejetnosc, zPrzewaga: false)
+            Button("Normalny rzut") { performSkillCheck(withAdvantage: false) }
+            if player.inspiracja {
+                Button("Użyj Inspiracji (Przewaga)") { performSkillCheck(withAdvantage: true) }
             }
-            
-            if viewModel.postac.inspiracja {
-                Button("Użyj Inspiracji (Przewaga)") {
-                    viewModel.SkillRoll(umiejetnosc: umiejetnosc, zPrzewaga: true)
-                }
-            }
-            
             Button("Anuluj", role: .cancel) {}
         }
     }
     
     private func toggleBieglosc() {
-        if postacBinding.skillsProficiencyList.contains(umiejetnosc) {
-            postacBinding.skillsProficiencyList.remove(umiejetnosc)
+        if let index = player.skillsProficiencyList.firstIndex(of: umiejetnosc) {
+            player.skillsProficiencyList.remove(at: index)
         } else {
-            postacBinding.skillsProficiencyList.insert(umiejetnosc)
+            player.skillsProficiencyList.append(umiejetnosc)
         }
     }
     
     private var modyfikatorTekst: String {
-        let modyfikator = postacBinding.SkillsModifier(for: umiejetnosc)
+        let modyfikator = player.skillsModifier(for: umiejetnosc)
         return modyfikator >= 0 ? "+\(modyfikator)" : "\(modyfikator)"
+    }
+
+    private func performSkillCheck(withAdvantage: Bool) {
+        if withAdvantage && player.inspiracja {
+            player.inspiracja = false
+        }
+        
+        let hasDisadvantage = player.aktywneStany.contains(.Otruty) || player.aktywneStany.contains(.Przestraszony)
+        let modifier = player.skillsModifier(for: umiejetnosc)
+        var diceRoll = Int.random(in: 1...20)
+        var rollTitle = "Test: \(umiejetnosc.rawValue)"
+        
+        if withAdvantage && !hasDisadvantage {
+            diceRoll = max(diceRoll, Int.random(in: 1...20))
+            rollTitle = "Test (Przewaga): \(umiejetnosc.rawValue)"
+        } else if hasDisadvantage && !withAdvantage {
+            diceRoll = min(diceRoll, Int.random(in: 1...20))
+            rollTitle = "Test (Utrudnienie): \(umiejetnosc.rawValue)"
+        }
+        
+        let rollResult = RollResult(
+            tytul: rollTitle,
+            wynikOstateczny: diceRoll + modifier,
+            rzutKosci: diceRoll,
+            modyfikator: modifier
+        )
+        ostatniRzut = rollResult
     }
 }

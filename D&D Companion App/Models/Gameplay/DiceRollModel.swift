@@ -7,20 +7,20 @@
 
 import Foundation
 
-// -- Dice Roll Mechanism -- //
+// Dodajemy unikalny identyfikator do każdego rzutu
 struct RollResult: Equatable {
+    let id = UUID() // Każdy nowy rzut będzie miał unikalne ID
     let tytul: String
     let wynikOstateczny: Int
     let rzutKosci: Int
     let modyfikator: Int
-    var formula: String? // Zmieniamy na opcjonalne
+    var formula: String?
     
-    // NOWE, OPCJONALNE WŁAŚCIWOŚCI
-    // Jeśli nie są nil, wiemy, że to był rzut na trafienie
     var bronDoAtaku: Weapon? = nil
+    var czarDoAtaku: Spells? = nil
     
-    // Usprawniamy porównywanie
+    // Porównujemy teraz tylko po unikalnym ID
     static func == (lhs: RollResult, rhs: RollResult) -> Bool {
-        return lhs.tytul == rhs.tytul && lhs.wynikOstateczny == rhs.wynikOstateczny && lhs.formula == rhs.formula
+        return lhs.id == rhs.id
     }
 }

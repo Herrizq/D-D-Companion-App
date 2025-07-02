@@ -8,8 +8,9 @@
 import SwiftUI
 
 struct ConditionsView: View {
-    @Binding var aktywneStany: Set<Condition>
-    
+    @Binding var aktywneStany: [Condition]
+    @Environment(\.dismiss) var dismiss
+
     var body: some View {
         NavigationView {
             List(Condition.allCases) { stan in
@@ -27,14 +28,21 @@ struct ConditionsView: View {
                 .foregroundColor(.primary)
             }
             .navigationTitle("Zarządzaj Stanami")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Gotowe") { dismiss() }
+                }
+            }
         }
     }
     
     private func toggleStan(_ stan: Condition) {
-        if aktywneStany.contains(stan) {
-            aktywneStany.remove(stan)
+        if let index = aktywneStany.firstIndex(of: stan) {
+            // Jeśli stan już istnieje, usuwamy go
+            aktywneStany.remove(at: index)
         } else {
-            aktywneStany.insert(stan)
+            // Jeśli nie, dodajemy go
+            aktywneStany.append(stan)
         }
     }
 }

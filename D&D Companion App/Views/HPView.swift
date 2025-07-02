@@ -8,18 +8,18 @@
 import SwiftUI
 
 struct HPView: View {
-    @EnvironmentObject var viewModel: PlayerViewModel
+    @Bindable var player: Player
     
     var body: some View {
         TitledContainer(title: "Punkty Wytrzymałości") {
             HStack {
                 VStack(alignment: .leading) {
                     HStack(alignment: .firstTextBaseline, spacing: 2) {
-                        Text("\(viewModel.postac.currentHitPoints)")
+                        Text("\(player.currentHitPoints)")
                             .font(.system(size: 48, weight: .bold, design: .rounded))
                             .foregroundColor(.primary)
                         
-                        Text("/ \(viewModel.postac.hitPointsMaximum)")
+                        Text("/ \(player.hitPointsMaximum)")
                             .font(.title2)
                             .fontWeight(.semibold)
                             .foregroundStyle(.secondary)
@@ -32,14 +32,14 @@ struct HPView: View {
                 Spacer()
                 
                 VStack {
-                    Button(action: { viewModel.ChangeHP(o: 1) }) {
+                    Button(action: { changeHP(by: 1) }) {
                         Image(systemName: "plus")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
                     .frame(height: 20)
                     
-                    Button(action: { viewModel.ChangeHP(o: -1) }) {
+                    Button(action: { changeHP(by: -1) }) {
                         Image(systemName: "minus")
                             .frame(maxWidth: .infinity)
                     }
@@ -51,5 +51,10 @@ struct HPView: View {
             }
         }
     }
-}
 
+    private func changeHP(by amount: Int) {
+        let newValue = player.currentHitPoints + amount
+        // Upewniamy się, że HP nie spadnie poniżej 0 i nie przekroczy maksimum.
+        player.currentHitPoints = max(0, min(player.hitPointsMaximum, newValue))
+    }
+}

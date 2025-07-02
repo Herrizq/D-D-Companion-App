@@ -1,0 +1,57 @@
+[
+  {
+    "id": "pancerz-skorzany",
+    "nazwa": "Pancerz skórzany",
+    "koszt": "10 sz",
+    "klasa_pancerza_bazowa": 11,
+    "modyfikator_ze_zrecznosci": "pełny",
+    "typ": "Lekki",
+    "wymagana_sila": null,
+    "kara_do_skradania": false,
+    "waga": 10.0
+  },
+  {
+    "id": "pancerz-skorzany-cwierowany",
+    "nazwa": "Pancerz skórzany ćwiekowany",
+    "koszt": "45 sz",
+    "klasa_pancerza_bazowa": 12,
+    "modyfikator_ze_zrecznosci": "pełny",
+    "typ": "Lekki",
+    "wymagana_sila": null,
+    "kara_do_skradania": false,
+    "waga": 13.0
+  },
+  {
+    "id": "pancerz-kolczy",
+    "nazwa": "Pancerz kolczy",
+    "koszt": "50 sz",
+    "klasa_pancerza_bazowa": 14,
+    "modyfikator_ze_zrecznosci": "max 2",
+    "typ": "Średni",
+    "wymagana_sila": null,
+    "kara_do_skradania": true,
+    "waga": 45.0
+  },
+  {
+    "id": "zbroja-plytowa",
+    "nazwa": "Zbroja płytowa",
+    "koszt": "1500 sz",
+    "klasa_pancerza_bazowa": 18,
+    "modyfikator_ze_zrecznosci": "brak",
+    "typ": "Ciężki",
+    "wymagana_sila": 15,
+    "kara_do_skradania": true,
+    "waga": 65.0
+  },
+  {
+    "id": "tarcza",
+    "nazwa": "Tarcza",
+    "koszt": "10 sz",
+    "klasa_pancerza_bazowa": 2,
+    "modyfikator_ze_zrecznosci": "brak",
+    "typ": "Tarcza",
+    "wymagana_sila": null,
+    "kara_do_skradania": false,
+    "waga": 6.0
+  }
+]
