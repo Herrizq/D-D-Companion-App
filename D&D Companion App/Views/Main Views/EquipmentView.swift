@@ -5,8 +5,11 @@ struct EquipmentView: View {
     @Bindable var player: Player
     @Binding var ostatniRzut: RollResult?
 
+    // Enum do zarządzania tym, który widok szczegółów pokazać
     enum SheetItem: Identifiable {
-        case weapon(Weapon), armor(Armor)
+        case weapon(Weapon)
+        case armor(Armor)
+        
         var id: String {
             switch self {
             case .weapon(let w): return "w_\(w.id)"
@@ -15,19 +18,21 @@ struct EquipmentView: View {
         }
     }
 
+    @State private var itemToShow: SheetItem?
+    
+    // Stany do kontrolowania widoków dodawania przedmiotów
     @State private var showingAddWeaponSheet = false
     @State private var showingCreateWeaponSheet = false
     @State private var showingAddArmorSheet = false
-    @State private var itemToShow: SheetItem?
-
+    
     var body: some View {
         List {
-            // Używamy nowego, wydzielonego widoku dla sekcji pancerzy
+            // Używamy wydzielonego widoku dla sekcji pancerzy
             ArmorSectionView(player: player) { armor in
                 itemToShow = .armor(armor)
             }
             
-            // Używamy nowego, wydzielonego widoku dla sekcji broni
+            // Używamy wydzielonego widoku dla sekcji broni
             WeaponSectionView(player: player, ostatniRzut: $ostatniRzut) { weapon in
                 itemToShow = .weapon(weapon)
             }
@@ -48,19 +53,20 @@ struct EquipmentView: View {
         .sheet(item: $itemToShow) { item in
             switch item {
             case .weapon(let weapon):
-                ActionDetailView(action: weapon.asCombatAction(for: player))
+                // Używamy nowego widoku dla broni
+                WeaponDetailView(weapon: weapon)
             case .armor(let armor):
-                ActionDetailView(action: armor.asCombatAction())
+                // Używamy nowego widoku dla pancerza
+                ArmorDetailView(armor: armor)
             }
         }
     }
 }
 
 
-// MARK: - Komponenty Widoku
+// MARK: - Komponenty Widoku (Wydzielone Sekcje)
 
-// --- NOWY WIDOK DLA SEKCJI PANCERZY ---
-struct ArmorSectionView: View {
+private struct ArmorSectionView: View {
     @Bindable var player: Player
     var onShowDetails: (Armor) -> Void
 
@@ -69,12 +75,13 @@ struct ArmorSectionView: View {
             if player.armorInventory?.isEmpty ?? true {
                 Text("Brak pancerzy w ekwipunku.").foregroundStyle(.secondary)
             }
-            ForEach(player.armorInventory ?? []) { item in
+            // Sortujemy listę, aby zapewnić stabilną kolejność
+            ForEach((player.armorInventory ?? []).sorted(by: { $0.nazwa < $1.nazwa })) { item in
                 HStack {
+                    // Przycisk do pokazywania szczegółów, obejmuje nazwę i typ
                     Button(action: { onShowDetails(item) }) {
-                        HStack {
-                            Text(item.nazwa)
-                            Spacer()
+                        VStack(alignment: .leading) {
+                            Text(item.nazwa).font(.headline)
                             Text(item.typ).font(.caption).foregroundStyle(.secondary)
                         }
                     }
@@ -88,6 +95,7 @@ struct ArmorSectionView: View {
                     }
                     .buttonStyle(.bordered).tint(isEquipped ? .gray : .accentColor)
                 }
+                .padding(.vertical, 4)
             }
             .onDelete(perform: usunPancerz)
         }
@@ -106,9 +114,7 @@ struct ArmorSectionView: View {
     }
 }
 
-
-// --- NOWY WIDOK DLA SEKCJI BRONI ---
-struct WeaponSectionView: View {
+private struct WeaponSectionView: View {
     @Bindable var player: Player
     @Binding var ostatniRzut: RollResult?
     var onShowDetails: (Weapon) -> Void
@@ -118,38 +124,28 @@ struct WeaponSectionView: View {
             if player.carriedWeapons?.isEmpty ?? true {
                 Text("Brak broni w ekwipunku.").foregroundStyle(.secondary)
             }
-            ForEach(player.carriedWeapons ?? []) { weapon in
+            // Sortujemy listę, aby zapewnić stabilną kolejność
+            ForEach((player.carriedWeapons ?? []).sorted(by: { $0.nazwa < $1.nazwa })) { weapon in
                 let action = weapon.asCombatAction(for: player)
-                HStack(spacing: 16) {
-                    Button(action: { onShowDetails(weapon) }) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(action.name).font(.headline).foregroundColor(.primary)
-                            Text(action.source.uppercased()).font(.system(size: 10, weight: .bold)).foregroundColor(.secondary)
-                        }
-                    }
-                    Spacer()
-                    Text(action.hitBonus).frame(width: 50, alignment: .center)
-                    Text(action.damage).frame(width: 80, alignment: .leading)
-                    Text(action.damageType).frame(width: 80, alignment: .leading) // Nowa kolumna
-                    Button(action: { performAttackRoll(with: weapon) }) {
-                        Image(systemName: "dice.fill").font(.title2).foregroundColor(.accentColor)
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(.vertical, 8)
+                // Używamy ActionRowView dla spójnego wyglądu z zakładką Walka
+                ActionRowView(
+                    action: action,
+                    onRoll: { performAttackRoll(with: weapon) },
+                    onShowDetails: { onShowDetails(weapon) }
+                )
             }
             .onDelete(perform: usunBron)
         }
     }
     
-    // Nagłówek dla sekcji broni
-    struct WeaponSectionHeader: View {
+    // Prywatny komponent dla nagłówka, dopasowany do ActionRowView
+    private struct WeaponSectionHeader: View {
         var body: some View {
             HStack(spacing: 16) {
                 Text("Nazwa").frame(maxWidth: .infinity, alignment: .leading)
+                Text("Zasięg").frame(width: 80, alignment: .center)
                 Text("Traf.").frame(width: 50, alignment: .center)
-                Text("Obr.").frame(width: 80, alignment: .leading)
-                Text("Typ").frame(width: 80, alignment: .leading) // Nowy nagłówek
+                Text("Obr.").frame(width: 100, alignment: .leading)
                 Image(systemName: "dice").frame(width: 24, alignment: .center).opacity(0)
             }
             .font(.caption.bold())
@@ -165,45 +161,5 @@ struct WeaponSectionView: View {
         let bonuses = player.calculateToHitBonuses(dlaBroni: weapon)
         let roll = Int.random(in: 1...20)
         ostatniRzut = RollResult(tytul: "Atak: \(weapon.nazwa)", wynikOstateczny: roll + bonuses.trafienie, rzutKosci: roll, modyfikator: bonuses.trafienie, bronDoAtaku: weapon)
-    }
-}
-
-
-// MARK: - Rozszerzenia Modeli
-
-// Dodajemy małe funkcje pomocnicze do modeli, aby łatwo tworzyć z nich akcje
-extension Weapon {
-    func asCombatAction(for player: Player) -> CombatAction {
-        let bonuses = player.calculateToHitBonuses(dlaBroni: self)
-        return CombatAction(
-            name: self.nazwa,
-            description: "Szczegółowy opis broni.",
-            source: self.kategoria.rawValue,
-            range: self.isRanged ? "Dystansowa" : "5 ft.",
-            hitBonus: "+\(bonuses.trafienie)",
-            damage: bonuses.obrazenia,
-            damageType: self.typObrazen,
-            // --- POPRAWKA ---
-            // Dodajemy informację, że ta akcja wiąże się z rzutem dla broni.
-            rollable: .weapon(self)
-        )
-    }
-}
-
-extension Armor {
-    func asCombatAction() -> CombatAction {
-        let acDescription = "KP: \(self.klasaPancerzaBazowa)" + (self.typ != "Tarcza" ? " + mod. ze Zręczności (\(self.modyfikatorZeZrecznosci))" : "")
-        return CombatAction(
-            name: self.nazwa,
-            description: acDescription,
-            source: self.typ,
-            range: "-",
-            hitBonus: "-",
-            damage: "-",
-            damageType: "-",
-            // --- POPRAWKA ---
-            // Dodajemy informację, że ta akcja nie wiąże się z żadnym rzutem.
-            rollable: .none
-        )
     }
 }

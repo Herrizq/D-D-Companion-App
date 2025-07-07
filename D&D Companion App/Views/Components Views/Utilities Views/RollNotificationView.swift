@@ -19,7 +19,7 @@ struct RollNotificationView: View {
         // zakładamy, że to czar użytkowy.
         return wynik.rzutKosci == 0 && wynik.modyfikator == 0 && wynik.bronDoAtaku == nil
     }
-
+    
     var body: some View {
         VStack(spacing: 0) {
             // --- Główna część powiadomienia (wygląd bez zmian) ---
@@ -35,25 +35,25 @@ struct RollNotificationView: View {
                         .foregroundStyle(.gray)
                     
                     if isUtilitySpell {
-                                           // Dla czarów użytkowych wyświetlamy tylko nazwę w formule
-                                           if let formula = wynik.formula {
-                                               Text(formula.capitalized)
-                                                   .font(.title2).fontWeight(.bold).foregroundStyle(.white)
-                                           }
-                                       } else {
-                                           // Dla normalnych rzutów wyświetlamy jak dawniej
-                                           Text("\(wynik.rzutKosci) \(wynik.modyfikator >= 0 ? "+" : "") \(wynik.modyfikator)")
-                                               .font(.title2).fontWeight(.bold).foregroundStyle(.white)
-                                       }
+                        // Dla czarów użytkowych wyświetlamy tylko nazwę w formule
+                        if let formula = wynik.formula {
+                            Text(formula.capitalized)
+                                .font(.title2).fontWeight(.bold).foregroundStyle(.white)
+                        }
+                    } else {
+                        // Dla normalnych rzutów wyświetlamy jak dawniej
+                        Text("\(wynik.rzutKosci) \(wynik.modyfikator >= 0 ? "+" : "") \(wynik.modyfikator)")
+                            .font(.title2).fontWeight(.bold).foregroundStyle(.white)
+                    }
                 }
                 
                 Spacer()
                 
                 if !isUtilitySpell {
-                                    Text("\(wynik.wynikOstateczny)")
-                                        .font(.system(size: 44, weight: .bold, design: .rounded))
-                                        .foregroundStyle(.white)
-                                }
+                    Text("\(wynik.wynikOstateczny)")
+                        .font(.system(size: 44, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                }
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 15)
@@ -100,16 +100,30 @@ struct RollNotificationView: View {
                 .stroke(Color.white.opacity(0.2), lineWidth: 1)
         )
     }
-
+    
     // --- Prywatne metody do obsługi rzutów ---
-
+    
     private func performDamageRoll(for weapon: Weapon) {
         let usedStat: BasicStatistics = weapon.wlasciwosci.contains("Finezyjna") && player.statisticsModifier(for: .zręczność) > player.statisticsModifier(for: .siła) ? .zręczność : .siła
-        let damageModifier = player.statisticsModifier(for: usedStat)
+        var damageModifier = player.statisticsModifier(for: usedStat)
         
         var diceSum = 0
         for _ in 0..<weapon.iloscKosciObrazen {
-            diceSum += Int.random(in: 1...weapon.koscObrazen)
+            var roll = Int.random(in: 1...weapon.koscObrazen)
+            
+            // --- LOGIKA DLA STYLU WALKI "WALKA BRONIĄ DWURĘCZNĄ" ---
+            if player.fightingStyles.contains(.greatWeaponFighting) && (roll == 1 || roll == 2) {
+                // Przerzuć kość, ale musisz użyć nowego wyniku
+                roll = Int.random(in: 1...weapon.koscObrazen)
+            }
+            diceSum += roll
+        }
+        
+        // --- LOGIKA DLA STYLU WALKI "WALKA SZERMIERCZA" (DUELING) ---
+        if player.fightingStyles.contains(.dueling) && !weapon.wlasciwosci.contains("Dwuręczna") {
+            // Zakładamy, że gracz nie trzyma drugiej broni. Aplikacja nie śledzi rąk.
+            // W przyszłości można by to rozbudować.
+            damageModifier += 2
         }
         
         let damageResult = RollResult(
@@ -119,36 +133,63 @@ struct RollNotificationView: View {
             modyfikator: damageModifier,
             formula: "\(weapon.iloscKosciObrazen)k\(weapon.koscObrazen) \(damageModifier >= 0 ? "+" : "") \(damageModifier)"
         )
-        
-        // Zastępujemy stary rzut nowym, aby zaktualizować powiadomienie
         ostatniRzut = damageResult
     }
-
+    
     private func performSpellDamageRoll(spell: Spells, atLevel level: Int) {
-        guard var iloscKosci = spell.iloscKosciObrazen, let kosc = spell.koscObrazen else { return }
-
-        // POPRAWIONA LINIA:
-        // Usuwamy "let id = spell.id" i używamy "spell.id" bezpośrednio
-        if level > spell.poziom && ["leczenie-ran", "kula-ognia"].contains(spell.id) {
-            iloscKosci += (level - spell.poziom)
+        guard var diceCount = spell.iloscKosciObrazen, let diceType = spell.koscObrazen else { return }
+        
+        if level > spell.poziom, ["leczenie-ran", "kula-ognia"].contains(spell.id) {
+            diceCount += (level - spell.poziom)
         }
         
-        var sumaRzutu = 0
-        for _ in 0..<iloscKosci {
-            sumaRzutu += Int.random(in: 1...kosc)
+        var totalRoll = 0
+        for _ in 0..<diceCount {
+            totalRoll += Int.random(in: 1...diceType)
         }
         
-        let modyfikatorObrazen = (spell.typObrazen == "Leczenie") ? player.spellcastingAbilityModifier : 0
-        let formula = modyfikatorObrazen != 0 ? "\(iloscKosci)k\(kosc) + \(modyfikatorObrazen)" : "\(iloscKosci)k\(kosc)"
-
-        let wynikObrazen = RollResult(
-            tytul: spell.typObrazen == "Leczenie" ? "Leczenie: \(spell.nazwa)" : "Obrażenia: \(spell.nazwa)",
-            wynikOstateczny: sumaRzutu + modyfikatorObrazen,
-            rzutKosci: sumaRzutu,
-            modyfikator: modyfikatorObrazen,
+        var damageModifier = 0
+        var resultTitle = "Obrażenia: \(spell.nazwa)"
+        
+        // --- ZAKTUALIZOWANA I ULEPSZONA LOGIKA LECZENIA ---
+        if spell.typObrazen == "Leczenie" {
+            damageModifier = player.spellcastingAbilityModifier
+            resultTitle = "Leczenie: \(spell.nazwa)"
+            
+            // ZDOLNOŚĆ: UCZEŃ ŻYCIA (DOMENA ŻYCIA)
+            if player.clericDomain == .life {
+                damageModifier += (2 + level) // Bonus do leczenia
+            }
+        } else {
+            // --- NOWA LOGIKA DLA POTĘŻNEGO RZUCANIA CZARÓW ---
+            if spell.poziom == 0 { // Sprawdzamy, czy to sztuczka
+                let potentDomains: [ClericDomain] = [.knowledge, .light]
+                if let domain = player.clericDomain, potentDomains.contains(domain), player.poziom >= 8 {
+                    // Dodaj modyfikator z Mądrości do obrażeń
+                    damageModifier += player.spellcastingAbilityModifier
+                }
+            }
+        }
+        
+        let finalResult = totalRoll + damageModifier
+        let formula = damageModifier != 0 ? "\(diceCount)k\(diceType) + \(damageModifier)" : "\(diceCount)k\(diceType)"
+        
+        let rollResult = RollResult(
+            tytul: resultTitle,
+            wynikOstateczny: finalResult,
+            rzutKosci: totalRoll,
+            modyfikator: damageModifier,
             formula: formula
         )
         
-        ostatniRzut = wynikObrazen
+        // --- NOWA LOGIKA DLA BŁOGOSŁAWIONEGO UZDROWICIELA ---
+        if player.clericDomain == .life && player.poziom >= 6 && spell.typObrazen == "Leczenie" {
+            // Gdy leczysz kogoś innego, sam również się leczysz
+            let selfHealingAmount = 2 + level
+            player.currentHitPoints = min(player.hitPointsMaximum, player.currentHitPoints + selfHealingAmount)
+        }
+        
+        // Aktualizujemy powiadomienie
+        ostatniRzut = rollResult
     }
 }

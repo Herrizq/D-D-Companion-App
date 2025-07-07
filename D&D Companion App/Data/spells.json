@@ -912,25 +912,6 @@
     "typ_obrazen": null
   },
   {
-    "id": "unieruchomienie-osoby",
-    "nazwa": "Unieruchomienie osoby",
-    "opis": "Wybierz humanoida, którego widzisz w zasięgu. Cel musi wykonać pomyślnie rzut obronny na Mądrość, inaczej będzie sparaliżowany na czas trwania czaru. Na końcu każdej swojej tury, cel może wykonać kolejny rzut obronny na Mądrość, kończąc działanie czaru przy sukcesie.",
-    "wyzszePoziomy": "Gdy rzucasz ten czar używając komórki czarów 3. poziomu lub wyższego, możesz obrać za cel jedną dodatkową istotę za każdy poziom komórki powyżej 2. Cele muszą znajdować się w odległości 30 stóp od siebie.",
-    "poziom": 2,
-    "szkolaMagii": "Uroki",
-    "czasRzucania": "1 akcja",
-    "zasieg": "60 stóp",
-    "komponenty": ["W", "S", "M"],
-    "skladnikiMaterialne": "mały, prosty kawałek żelaza",
-    "czasTrwania": "Koncentracja, do 1 minuty",
-    "czyRytual": false,
-    "dostepnyDlaKlas": ["Bard", "Kleryk", "Druid", "Mag", "Czarownik", "Zaklinacz"],
-    "wymaga_ataku": false,
-    "ilosc_kosci_obrazen": null,
-    "kosc_obrazen": null,
-    "typ_obrazen": null
-  },
-  {
     "id": "lustrzane-odbicie",
     "nazwa": "Lustrzane odbicie",
     "opis": "Trzy iluzoryczne duplikaty ciebie pojawiają się w twojej przestrzeni. Do końca działania czaru, duplikaty poruszają się z tobą i naśladują twoje działania, zamieniając się miejscami, co uniemożliwia śledzenie, który obraz jest prawdziwy. Za każdym razem, gdy istota atakuje cię, rzuć k20, aby określić, czy atak trafia w ciebie, czy w jeden z twoich duplikatów.",

@@ -1,0 +1,17 @@
+[
+  {
+    "id": "szczesliwiec",
+    "nazwa": "Szczęśliwiec",
+    "opis": "Masz 3 punkty szczęścia. Ilekroć wykonujesz rzut na atak, rzut obronny lub test cechy, możesz wydać jeden punkt szczęścia, aby rzucić dodatkową kością k20. Możesz wybrać, której kości k20 użyć."
+  },
+  {
+    "id": "twardziel",
+    "nazwa": "Twardziel",
+    "opis": "Twoja Kondycja wzrasta o 1, do maksimum 20. Gdy rzucasz Kością Wytrzymałości, aby odzyskać punkty życia, minimalna odzyskana wartość to 2 x twój modyfikator z Kondycji."
+  },
+  {
+    "id": "mistrz-broni-drzewcowej",
+    "nazwa": "Mistrz Broni Drzewcowej",
+    "opis": "Gdy wykonujesz akcję Ataku glewią, halabardą lub kosturem, możesz użyć akcji dodatkowej, by wykonać atak drugą końcówką broni. Ponadto, inne istoty prowokują atak okazyjny, gdy wchodzą w twój zasięg."
+  }
+]

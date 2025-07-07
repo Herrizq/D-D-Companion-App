@@ -1,66 +1,81 @@
-//
-//  ContentView.swift
-//  D&D Companion App
-//
-//  Created by Michał Nalepka on 01/07/2025.
-//
-
 import SwiftUI
 import SwiftData
 
+// MARK: - Typy Pomocnicze
 enum SekcjaNawigacji: Hashable {
-    case kartaPostaci
-    case ekwipunek
-    case ksiegaCzarow
-    case roleplay
-    case walka
+    case kartaPostaci, ekwipunek, ksiegaCzarow, roleplay, walka
 }
 
+enum SheetItem: Identifiable {
+    case weapon(Weapon)
+    case spell(Spells)
+    case action(CombatAction)
+    
+    var id: String {
+        switch self {
+        case .weapon(let w): return "w_\(w.id)"
+        case .spell(let s): return "s_\(s.id)"
+        case .action(let a): return "a_\(a.id)"
+        }
+    }
+}
+
+// MARK: - Główny Widok Aplikacji (Menedżer Postaci)
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
+    @Query(sort: \Player.imie) private var players: [Player]
     
-    // Pobieramy postacie z bazy danych. Aplikacja zakłada jedną postać.
-    @Query var players: [Player]
+    @State private var activePlayer: Player?
     
     @State private var selection: SekcjaNawigacji? = .kartaPostaci
-    @State var ostatniRzut: RollResult? = nil
+    @State private var ostatniRzut: RollResult?
     
+    // Stany do zarządzania okienkami dla całej aplikacji
+    @State private var itemToShow: SheetItem?
+    @State private var actionToRoll: CombatAction?
+    @State private var showingSpellLevelDialog = false
+    
+    // POPRAWKA 2: Stan do zarządzania widocznością panelu bocznego
+    @State private var columnVisibility: NavigationSplitViewVisibility = .detailOnly
+
     var body: some View {
-        // Sprawdzamy, czy postać istnieje. Jeśli nie, pokazujemy widok tworzenia.
-        if let player = players.first {
+        if let player = activePlayer {
             ZStack(alignment: .bottom) {
-                NavigationSplitView {
+                // POPRAWKA 2: Dodajemy parametr `columnVisibility`
+                NavigationSplitView(columnVisibility: $columnVisibility) {
+                    // POPRAWKA 1: Porządkujemy listę i przenosimy przycisk na dół
                     List(selection: $selection) {
-                        Label("Karta Postaci", systemImage: "person.text.rectangle")
-                            .tag(SekcjaNawigacji.kartaPostaci)
+                        Section {
+                            Label("Karta Postaci", systemImage: "person.text.rectangle").tag(SekcjaNawigacji.kartaPostaci)
+                            Label("Walka", systemImage: "bolt.shield.fill").tag(SekcjaNawigacji.walka)
+                            Label("Ekwipunek", systemImage: "backpack").tag(SekcjaNawigacji.ekwipunek)
+                            Label("Księga Czarów", systemImage: "book.closed").tag(SekcjaNawigacji.ksiegaCzarow)
+                            Label("Osobowość", systemImage: "theatermasks").tag(SekcjaNawigacji.roleplay)
+                        }
                         
-                        Label("Walka", systemImage: "bolt.shield.fill")
-                            .tag(SekcjaNawigacji.walka)
-                        
-                        Label("Ekwipunek", systemImage: "backpack")
-                            .tag(SekcjaNawigacji.ekwipunek)
-                        
-                        Label("Księga Czarów", systemImage: "book.closed")
-                            .tag(SekcjaNawigacji.ksiegaCzarow)
-                        
-                        Label("Osobowość", systemImage: "theatermasks")
-                            .tag(SekcjaNawigacji.roleplay)
+                        Section {
+                            Button(action: { activePlayer = nil }) {
+                                Label("Zmień Postać", systemImage: "person.2.fill")
+                            }
+                            .foregroundStyle(Color.accentColor)
+                        }
                     }
-                    .navigationTitle("Menu")
+                    .navigationTitle(player.imie.isEmpty ? "Nowa Postać" : player.imie)
                     
                 } detail: {
-                    // Przekazujemy postać i powiadomienia do odpowiednich widoków
                     switch selection {
                     case .kartaPostaci:
                         CharacterSheetView(player: player, ostatniRzut: $ostatniRzut)
+                    case .walka:
+                        CombatView(player: player, ostatniRzut: $ostatniRzut, actionToRoll: $actionToRoll) { item in
+                            self.itemToShow = item
+                        }
                     case .ekwipunek:
                         EquipmentView(player: player, ostatniRzut: $ostatniRzut)
                     case .ksiegaCzarow:
                         SpellbookView(player: player, ostatniRzut: $ostatniRzut)
-                    case .walka:
-                        CombatView(player: player, ostatniRzut: $ostatniRzut)
                     case .roleplay:
-                        Text("Wybierz sekcję z menu").font(.largeTitle)
+                        Text("Kiedyś uzupełnię").font(.largeTitle)
                     case .none:
                         Text("Wybierz sekcję z menu").font(.largeTitle)
                     }
@@ -68,7 +83,6 @@ struct ContentView: View {
                 
                 HStack(alignment: .bottom, spacing: 10) {
                     if let wynikRzutu = ostatniRzut {
-                        // Przekazujemy teraz tylko player i ostatniRzut
                         RollNotificationView(wynik: wynikRzutu, player: player, ostatniRzut: $ostatniRzut)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
@@ -78,18 +92,37 @@ struct ContentView: View {
                 .padding()
                 .animation(.default, value: ostatniRzut)
             }
-            .onAppear {
-                loadGameDataIfNeeded()
+            .sheet(item: $itemToShow) { item in
+                switch item {
+                case .weapon(let weapon):
+                    WeaponDetailView(weapon: weapon)
+                case .spell(let spell):
+                    SpellDetailView(czar: spell)
+                case .action(let action):
+                    ActionDetailView(action: action)
+                }
             }
-            // --- NOWA, CENTRALNA LOGIKA ZNIKANIA POWIADOMIEŃ ---
+            .confirmationDialog("Rzuć czar na poziomie...", isPresented: $showingSpellLevelDialog, titleVisibility: .visible) {
+                if let action = actionToRoll, case .spell(let spell) = action.rollable {
+                    let spellSlots = player.isEldritchKnight ? player.eldritchKnightCurrentSpellSlots : player.currentSpellSlots
+                    ForEach(spell.poziom..<10) { level in
+                        let index = level - 1
+                        if index < spellSlots.count, spellSlots[index] > 0 {
+                            Button("Poziom \(level) (\(spellSlots[index]) slotów)") {
+                                performAction(action, for: player, at: level)
+                                actionToRoll = nil
+                            }
+                        }
+                    }
+                }
+                Button("Anuluj", role: .cancel) {
+                    actionToRoll = nil
+                }
+            }
             .onChange(of: ostatniRzut) { oldValue, newValue in
-                // Jeśli pojawiło się nowe powiadomienie...
                 guard newValue != nil else { return }
-                
-                // Uruchom zadanie, które je zamknie po 4 sekundach
                 Task {
                     try? await Task.sleep(for: .seconds(4))
-                    // Upewnij się, że zamykasz właściwe powiadomienie
                     if ostatniRzut == newValue {
                         withAnimation(.easeOut) {
                             ostatniRzut = nil
@@ -97,60 +130,83 @@ struct ContentView: View {
                     }
                 }
             }
-        } else {
-            // Widok, który pojawi się, gdy nie ma żadnej postaci w bazie
-            VStack(spacing: 20) {
-                Text("Witaj w D&D Companion!")
-                    .font(.largeTitle)
-                Button("Stwórz swoją pierwszą postać") {
-                    createNewCharacter()
+            .onChange(of: actionToRoll) { oldValue, newValue in
+                guard let action = newValue else { return }
+                
+                if case .spell(let spell) = action.rollable, spell.poziom > 0 {
+                    showingSpellLevelDialog = true
+                } else {
+                    performAction(action, for: player, at: nil)
+                    actionToRoll = nil
                 }
-                .buttonStyle(.borderedProminent)
             }
-            .onAppear {
-                loadGameDataIfNeeded()
+            
+        } else {
+            CharacterSelectionView(
+                players: players,
+                onSelect: { player in activePlayer = player },
+                onCreate: { createNewCharacter() },
+                onDelete: { offsets in deleteCharacter(at: offsets) }
+            )
+            .onAppear(perform: loadGameDataIfNeeded)
+        }
+    }
+
+    private func performAction(_ action: CombatAction, for player: Player, at spellLevel: Int?) {
+        switch action.rollable {
+        case .weapon(let weapon):
+            ostatniRzut = player.performWeaponAttack(with: weapon)
+            
+        case .spell(let spell):
+            let level = spellLevel ?? spell.poziom
+            player.useSpellSlot(atLevel: level)
+            
+            if spell.wymagaAtaku == true {
+                ostatniRzut = player.performSpellAttack(spell: spell, atLevel: level)
             }
+        case .none:
+            break
         }
     }
     
     private func createNewCharacter() {
-        let newPlayer = Player() // Tworzy postać z domyślnymi wartościami
+        let newPlayer = Player()
         modelContext.insert(newPlayer)
         try? modelContext.save()
+        activePlayer = newPlayer
+    }
+
+    private func deleteCharacter(at offsets: IndexSet) {
+        for index in offsets {
+            let playerToDelete = players[index]
+            modelContext.delete(playerToDelete)
+        }
     }
     
     private func loadGameDataIfNeeded() {
-        let weaponDescriptor = FetchDescriptor<Weapon>()
-        if (try? modelContext.fetchCount(weaponDescriptor)) == 0 {
+        if (try? modelContext.fetchCount(FetchDescriptor<Weapon>())) == 0 {
             loadAndMapJson(filename: "weapons", jsonType: [WeaponJSON].self) { items in
-                for item in items {
-                    modelContext.insert(Weapon(from: item))
-                }
+                items.forEach { modelContext.insert(Weapon(from: $0)) }
             }
         }
-        
-        let spellDescriptor = FetchDescriptor<Spells>()
-        if (try? modelContext.fetchCount(spellDescriptor)) == 0 {
+        if (try? modelContext.fetchCount(FetchDescriptor<Spells>())) == 0 {
             loadAndMapJson(filename: "spells", jsonType: [SpellsJSON].self) { items in
-                for item in items {
-                    modelContext.insert(Spells(from: item))
-                }
+                items.forEach { modelContext.insert(Spells(from: $0)) }
             }
         }
-        let maneuverDescriptor = FetchDescriptor<Maneuver>()
-        if (try? modelContext.fetchCount(maneuverDescriptor)) == 0 {
+        if (try? modelContext.fetchCount(FetchDescriptor<Maneuver>())) == 0 {
             loadAndMapJson(filename: "maneuvers", jsonType: [ManeuverJSON].self) { items in
-                for item in items {
-                    modelContext.insert(Maneuver(from: item))
-                }
+                items.forEach { modelContext.insert(Maneuver(from: $0)) }
             }
         }
-        let armorDescriptor = FetchDescriptor<Armor>()
-        if (try? modelContext.fetchCount(armorDescriptor)) == 0 {
+        if (try? modelContext.fetchCount(FetchDescriptor<Armor>())) == 0 {
             loadAndMapJson(filename: "armor", jsonType: [ArmorJSON].self) { items in
-                for item in items {
-                    modelContext.insert(Armor(from: item))
-                }
+                items.forEach { modelContext.insert(Armor(from: $0)) }
+            }
+        }
+        if (try? modelContext.fetchCount(FetchDescriptor<Feat>())) == 0 {
+            loadAndMapJson(filename: "feats", jsonType: [FeatJSON].self) { items in
+                items.forEach { modelContext.insert(Feat(from: $0)) }
             }
         }
     }
@@ -159,16 +215,60 @@ struct ContentView: View {
         guard let url = Bundle.main.url(forResource: filename, withExtension: "json") else {
             fatalError("Nie znaleziono pliku \(filename).json")
         }
-        
         do {
             let data = try Data(contentsOf: url)
-            // Nazwy kluczy w JSON są teraz mapowane automatycznie na te w strukturach JSON
             let items = try JSONDecoder().decode(T.self, from: data)
             mapper(items)
             try modelContext.save()
         } catch {
-            // Ten błąd teraz precyzyjniej wskaże problem z dekodowaniem.
             fatalError("Błąd wczytywania \(filename).json: \(error)")
+        }
+    }
+}
+
+struct CharacterSelectionView: View {
+    let players: [Player]
+    var onSelect: (Player) -> Void
+    var onCreate: () -> Void
+    var onDelete: (IndexSet) -> Void
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if players.isEmpty {
+                    ContentUnavailableView(
+                        "Brak Postaci",
+                        systemImage: "person.3.sequence.fill",
+                        description: Text("Stwórz swoją pierwszą postać, aby rozpocząć przygodę.")
+                    )
+                } else {
+                    ForEach(players) { player in
+                        Button(action: { onSelect(player) }) {
+                            HStack {
+                                VStack(alignment: .leading) {
+                                    Text(player.imie.isEmpty ? "Nowa Postać" : player.imie).font(.headline)
+                                    Text("\(player.rasa.rawValue) \(player.klasa.rawValue), Poziom \(player.poziom)")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                            }
+                        }
+                        .foregroundColor(.primary)
+                    }
+                    .onDelete(perform: onDelete)
+                }
+            }
+            .navigationTitle("Wybierz Postać")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    EditButton()
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Dodaj nową", systemImage: "plus", action: onCreate)
+                }
+            }
         }
     }
 }
