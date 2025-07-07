@@ -6,42 +6,35 @@ struct SpellPreparationView: View {
     @Query private var allSpells: [Spells]
     @Environment(\.dismiss) var dismiss
     
-    // Otrzymujemy ID zaklęć domeny, aby je wykluczyć
-    let domainSpellIDs: [String]
-    
+    // Pobieramy ID czarów domenowych, aby je wykluczyć z listy wyboru
+    private var domainSpellIDs: [String] {
+        player.domainSpells(allSpells: allSpells).map { $0.id }
+    }
+
+    // Lista czarów, które Kleryk może przygotować
     private var availableSpells: [Spells] {
-        // 1. Pobierz wszystkie czary dostępne dla klasy gracza
-        let allPossibleSpells = allSpells.filter { spell in
-            let maxSpellLevel = (player.poziom + 1) / 2
-            return spell.dostepnyDlaKlas.contains(player.klasa.rawValue) &&
-                   spell.poziom > 0 &&
-                   spell.poziom <= maxSpellLevel
+        // Maksymalny poziom czaru, jaki Kleryk może rzucić
+        let maxSpellLevel = (player.poziom + 1) / 2
+        
+        return allSpells.filter { spell in
+            // Czar musi być z listy kleryka i mieć odpowiedni poziom
+            spell.dostepnyDlaKlas.contains(player.klasa.rawValue) &&
+            spell.poziom > 0 &&
+            spell.poziom <= maxSpellLevel &&
+            // Czar nie może być czarem domenowym (te są przygotowane automatycznie)
+            !domainSpellIDs.contains(spell.id)
         }
-        
-        // 2. Odrzuć czary, które gracz już zna jako czary domenowe
-        let spellsToChooseFrom = allPossibleSpells.filter { !domainSpellIDs.contains($0.id) }
-        
-        // 3. Usuń ewentualne duplikaty, które mogły pozostać
-        var uniqueSpells: [Spells] = []
-        var seenSpellIDs = Set<String>()
-        
-        for spell in spellsToChooseFrom {
-            if !seenSpellIDs.contains(spell.id) {
-                uniqueSpells.append(spell)
-                seenSpellIDs.insert(spell.id)
-            }
-        }
-        
-        return uniqueSpells
     }
 
     var body: some View {
         NavigationView {
             List {
-                Section(header: Text("Wybierz czary do przygotowania")) {
+                Section(header: Text("Przygotowane Czary")) {
                     Text("Możesz przygotować \(player.preparedSpells.count) / \(player.maxPreparedSpells) czarów.")
                         .foregroundColor(player.preparedSpells.count > player.maxPreparedSpells ? .red : .primary)
-                    
+                }
+                
+                Section(header: Text("Dostępne Czary Kleryka")) {
                     ForEach(availableSpells.sorted(by: { $0.poziom < $1.poziom || ($0.poziom == $1.poziom && $0.nazwa < $1.nazwa)})) { spell in
                         Button(action: { togglePreparation(for: spell) }) {
                             HStack {

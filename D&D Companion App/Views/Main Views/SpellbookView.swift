@@ -31,7 +31,7 @@ struct SpellbookView: View {
                 seenSpellIDs.insert(spell.id)
             }
         }
-        return uniqueSpells
+        return uniqueSpells.sorted { $0.nazwa < $1.nazwa }
     }
     
     private var cantripsToDisplay: [Spells] {
@@ -47,7 +47,7 @@ struct SpellbookView: View {
                 seenCantripIDs.insert(cantrip.id)
             }
         }
-        return uniqueCantrips
+        return uniqueCantrips.sorted { $0.nazwa < $1.nazwa }
     }
 
     private var czaryPogrupowane: [Int: [Spells]] {
@@ -90,10 +90,11 @@ struct SpellbookView: View {
                 }
                 
                 Section(header: Text("Komórki Czarów")) {
-                    let spellSlots = isEldritchKnight ? player.eldritchKnightSpellSlots : player.currentSpellSlots
-                    let maxSlots = isEldritchKnight ? player.eldritchKnightSpellSlots : player.maxSpellSlots
+                    // --- POPRAWKA: Używamy odpowiednich slotów do wyświetlania ---
+                    let spellSlots = player.isEldritchKnight ? player.eldritchKnightCurrentSpellSlots : player.currentSpellSlots
+                    let maxSlots = player.isEldritchKnight ? player.eldritchKnightSpellSlots : player.maxSpellSlots
                     
-                    if spellSlots.allSatisfy({ $0 == 0 }) {
+                    if maxSlots.allSatisfy({ $0 == 0 }) {
                         Text("Brak dostępnych komórek czarów.")
                     } else {
                         ForEach(0..<maxSlots.count, id: \.self) { index in
@@ -114,7 +115,7 @@ struct SpellbookView: View {
                 if !cantripsToDisplay.isEmpty {
                     Section(header: Text("Sztuczki (Cantrips)")) {
                         ForEach(cantripsToDisplay) { czar in
-                            SpellRowView(czar: czar, player: player, onRowTapped: { spellToShow = czar }, ostatniRzut: $ostatniRzut)
+                            SpellRowView(player: player, czar: czar, onRowTapped: { spellToShow = czar }, ostatniRzut: $ostatniRzut)
                         }
                     }
                 }
@@ -123,7 +124,7 @@ struct SpellbookView: View {
                     if let czaryNaPoziomie = czaryPogrupowane[poziom], !czaryNaPoziomie.isEmpty {
                         Section(header: Text("Poziom \(poziom)")) {
                             ForEach(czaryNaPoziomie) { czar in
-                                SpellRowView(czar: czar, player: player, onRowTapped: { spellToShow = czar }, ostatniRzut: $ostatniRzut)
+                                SpellRowView(player: player, czar: czar, onRowTapped: { spellToShow = czar }, ostatniRzut: $ostatniRzut)
                             }
                         }
                     }
@@ -138,7 +139,7 @@ struct SpellbookView: View {
             if isEldritchKnight {
                 EldritchKnightSpellSelectionView(player: player)
             } else if isPreparedCaster {
-                SpellPreparationView(player: player, domainSpellIDs: [])
+                SpellPreparationView(player: player)
             }
         }
         .sheet(item: $spellToShow) { spell in

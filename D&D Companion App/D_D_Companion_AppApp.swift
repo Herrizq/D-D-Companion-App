@@ -1,38 +1,33 @@
-//
-//  D_D_Companion_AppApp.swift
-//  D&D Companion App
-//
-//  Created by Michał Nalepka on 01/07/2025.
-//
-
 import SwiftUI
 import SwiftData
 
 @main
-struct DnD_CompanionApp: App {
+struct D_D_Companion_AppApp: App {
+    // Usunęliśmy @StateObject private var viewModel
 
-    let modelContainer: ModelContainer
+    // Konfiguracja kontenera SwiftData
+    var sharedModelContainer: ModelContainer = {
+        let schema = Schema([
+            Player.self,
+            Weapon.self,
+            Armor.self,
+            Spells.self,
+            Feat.self // Dodajemy Atuty do schematu
+        ])
+        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
-    init() {
         do {
-            let schema = Schema([
-                Player.self,
-                Weapon.self,
-                Spells.self,
-                Maneuver.self,
-                Armor.self
-            ])
-            let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-            modelContainer = try ModelContainer(for: schema, configurations: [modelConfiguration])
+            return try ModelContainer(for: schema, configurations: [modelConfiguration])
         } catch {
             fatalError("Nie można utworzyć ModelContainer: \(error)")
         }
-    }
+    }()
 
     var body: some Scene {
         WindowGroup {
             ContentView()
         }
-        .modelContainer(modelContainer)
+        .modelContainer(sharedModelContainer)
+        // Usunęliśmy .environmentObject(viewModel)
     }
 }

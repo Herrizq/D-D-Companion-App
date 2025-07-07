@@ -72,25 +72,11 @@ struct ArmorJSON: Codable {
     let waga: Double
 }
 
-
-@Model
-final class Maneuver {
-    // Usunięto @Attribute(.unique)
-    var id: String = ""
-    var nazwa: String = ""
-    var opis: String = ""
-    
-    var knowingPlayers: [Player]? = []
-    
-    init(from json: ManeuverJSON) {
-        self.id = json.id
-        self.nazwa = json.nazwa
-        self.opis = json.opis
-    }
-    
-    init() {}
+struct FeatJSON: Codable {
+    let id: String
+    let nazwa: String
+    let opis: String
 }
-
 
 
 // --- MODELE SWIFTDATA ---
@@ -113,6 +99,8 @@ final class Weapon {
     }
 
     var owner: Player?
+    
+    var bondedPlayer: Player?
     
     init(from json: WeaponJSON) {
         self.id = json.id
@@ -159,6 +147,8 @@ final class Spells {
     var typObrazen: String?
     
     var knownByEldritchKnights: [Player]? = []
+    
+    var learnedByNatureClerics: [Player]? = []
 
     init(from json: SpellsJSON) {
         self.id = json.id
@@ -216,6 +206,57 @@ final class Armor {
         init() {}
 }
 
+@Model
+final class Maneuver {
+    // Usunięto @Attribute(.unique)
+    var id: String = ""
+    var nazwa: String = ""
+    var opis: String = ""
+    
+    var knowingPlayers: [Player]? = []
+    
+    init(from json: ManeuverJSON) {
+        self.id = json.id
+        self.nazwa = json.nazwa
+        self.opis = json.opis
+    }
+    
+    init() {}
+}
+
+
+@Model
+final class Feat: Codable {
+    var id: String = ""
+    var nazwa: String = ""
+    var opis: String = ""
+
+    // Add CodingKeys to handle JSON decoding
+    enum CodingKeys: String, CodingKey {
+        case id, nazwa, opis
+    }
+    
+    // Add the required initializers for Codable conformance
+    init(from json: FeatJSON) {
+        self.id = json.id
+        self.nazwa = json.nazwa
+        self.opis = json.opis
+    }
+
+    required init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decode(String.self, forKey: .id)
+        self.nazwa = try container.decode(String.self, forKey: .nazwa)
+        self.opis = try container.decode(String.self, forKey: .opis)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(nazwa, forKey: .nazwa)
+        try container.encode(opis, forKey: .opis)
+    }
+}
 enum KategoriaBroni: String, Codable, Hashable, CaseIterable {
     case prosta = "Prosta"
     case zolnierska = "Żołnierska"
